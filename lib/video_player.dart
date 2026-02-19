@@ -519,6 +519,7 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
   ClosedCaptionFile? _closedCaptionFile;
   Timer? _timer;
   bool _isDisposed = false;
+  bool _isReplacing = false;
   Completer<void>? _creatingCompleter;
   StreamSubscription<dynamic>? _eventSubscription;
   _VideoAppLifeCycleObserver? _lifeCycleObserver;
@@ -611,6 +612,10 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
             errorDescription: null,
             isCompleted: false,
           );
+          if (_isReplacing) {
+            _isReplacing = false;
+            break;
+          }
           assert(
             !initializingCompleter.isCompleted,
             'VideoPlayerController already initialized. This is typically a '
@@ -989,6 +994,7 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
     return _videoPlayerPlatform.isAudioTrackSupportAvailable();
   }
 
+  // TODO(Alex): добавить методы типа replaceNetwork / replaceFile и т.д.
   /// Replaces the current video content with a new one specified by [dataSource],
   /// without disposing and recreating the player.
   ///
@@ -1010,6 +1016,7 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
         uri: dataSource,
         httpHeaders: httpHeaders,
       );
+      _isReplacing = true;
       await platform.replace(_playerId, platformDataSource);
     } else {
       throw UnimplementedError('replace() is only supported on iOS for now.');
