@@ -131,6 +131,12 @@ class FakeController extends ValueNotifier<VideoPlayerValue>
   }
 
   String? selectedAudioTrackId;
+  
+  @override
+  Future<void> replace(String dataSource, DataSourceType sourceType, {Map<String, String> httpHeaders = const <String, String>{}}) {
+    // TODO: implement replace
+    throw UnimplementedError();
+  }
 }
 
 Future<ClosedCaptionFile> _loadClosedCaption() async =>
