@@ -9,6 +9,7 @@ import 'dart:math' as math show max;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:video_player_avfoundation/video_player_avfoundation.dart';
 import 'package:video_player_platform_interface/video_player_platform_interface.dart'
     as platform_interface;
 
@@ -518,6 +519,7 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
   ClosedCaptionFile? _closedCaptionFile;
   Timer? _timer;
   bool _isDisposed = false;
+  bool _isReplacing = false;
   Completer<void>? _creatingCompleter;
   StreamSubscription<dynamic>? _eventSubscription;
   _VideoAppLifeCycleObserver? _lifeCycleObserver;
@@ -610,6 +612,10 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
             errorDescription: null,
             isCompleted: false,
           );
+          if (_isReplacing) {
+            _isReplacing = false;
+            break;
+          }
           assert(
             !initializingCompleter.isCompleted,
             'VideoPlayerController already initialized. This is typically a '
@@ -986,6 +992,35 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
   /// ```
   bool isAudioTrackSupportAvailable() {
     return _videoPlayerPlatform.isAudioTrackSupportAvailable();
+  }
+
+  // TODO(Alex): добавить методы типа replaceNetwork / replaceFile и т.д.
+  /// Replaces the current video content with a new one specified by [dataSource],
+  /// without disposing and recreating the player.
+  ///
+  /// This is only supported on iOS. On all other platforms, an
+  /// [UnimplementedError] will be thrown.
+  Future<void> replace(
+    String dataSource,
+    platform_interface.DataSourceType sourceType, {
+    Map<String, String> httpHeaders = const <String, String>{},
+  }) async {
+    if (_isDisposedOrNotInitialized) {
+      return;
+    }
+    final platform_interface.VideoPlayerPlatform platform =
+        _videoPlayerPlatform;
+    if (platform is AVFoundationVideoPlayer) {
+      final platformDataSource = platform_interface.DataSource(
+        sourceType: sourceType,
+        uri: dataSource,
+        httpHeaders: httpHeaders,
+      );
+      _isReplacing = true;
+      await platform.replace(_playerId, platformDataSource);
+    } else {
+      throw UnimplementedError('replace() is only supported on iOS for now.');
+    }
   }
 
   bool get _isDisposedOrNotInitialized => _isDisposed || !value.isInitialized;
