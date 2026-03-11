@@ -649,8 +649,35 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
               isPlaying: event.isPlaying,
               isCompleted: false,
             );
+            // Start position polling timer if not already running.
+            // This handles cases where playback is started externally
+            // (e.g. from iOS PiP controls) without going through play().
+            if (_timer == null || !_timer!.isActive) {
+              _timer?.cancel();
+              _timer = Timer.periodic(const Duration(milliseconds: 100), (
+                Timer timer,
+              ) async {
+                if (_isDisposed) {
+                  return;
+                }
+                final Duration? newPosition = await position;
+                if (newPosition == null) {
+                  return;
+                }
+                _updatePosition(newPosition);
+              });
+            }
           } else {
             value = value.copyWith(isPlaying: event.isPlaying);
+            _timer?.cancel();
+            // Query the actual position from the platform to sync Dart state
+            // after external playback changes (e.g. iOS PiP). The native side
+            // handles rendering the correct frame via AVPlayerItemTimeJumpedNotification.
+            position.then((Duration? currentPosition) {
+              if (currentPosition != null) {
+                _updatePosition(currentPosition);
+              }
+            });
           }
         case platform_interface.VideoEventType.unknown:
           break;
