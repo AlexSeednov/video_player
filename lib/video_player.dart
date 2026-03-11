@@ -670,6 +670,11 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
           } else {
             value = value.copyWith(isPlaying: event.isPlaying);
             _timer?.cancel();
+            // Seek to the current position to force the platform to render
+            // the correct frame to the Flutter texture. When playback is
+            // controlled externally (e.g. iOS PiP), the texture may still
+            // show a stale frame from before PiP started.
+            seekTo(value.position);
           }
         case platform_interface.VideoEventType.unknown:
           break;
