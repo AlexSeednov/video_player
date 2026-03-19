@@ -133,7 +133,7 @@ class FakeController extends ValueNotifier<VideoPlayerValue>
   String? selectedAudioTrackId;
   
   @override
-  Future<void> replace(String dataSource, DataSourceType sourceType, {Map<String, String> httpHeaders = const <String, String>{}}) {
+  Future<void> replace(String dataSource, DataSourceType sourceType, {String? id, Map<String, String> httpHeaders = const <String, String>{}}) {
     // TODO: implement replace
     throw UnimplementedError();
   }
@@ -1394,6 +1394,7 @@ void main() {
       const uninitialized = VideoPlayerValue.uninitialized();
 
       expect(uninitialized.duration, equals(Duration.zero));
+      expect(uninitialized.id, isNull);
       expect(uninitialized.position, equals(Duration.zero));
       expect(uninitialized.caption, equals(Caption.none));
       expect(uninitialized.captionOffset, equals(Duration.zero));
@@ -1415,6 +1416,7 @@ void main() {
       const error = VideoPlayerValue.erroneous(errorMessage);
 
       expect(error.duration, equals(Duration.zero));
+      expect(error.id, isNull);
       expect(error.position, equals(Duration.zero));
       expect(error.caption, equals(Caption.none));
       expect(error.captionOffset, equals(Duration.zero));
@@ -1469,7 +1471,8 @@ void main() {
 
       expect(
         value.toString(),
-        'VideoPlayerValue(duration: 0:00:05.000000, '
+        'VideoPlayerValue(id: null, '
+        'duration: 0:00:05.000000, '
         'size: Size(400.0, 300.0), '
         'position: 0:00:01.000000, '
         'caption: Caption(number: 0, start: 0:00:00.000000, end: 0:00:00.000000, text: foo), '
