@@ -26,7 +26,12 @@ dependencies:
   flutter:
     sdk: flutter
   html: ^0.15.0
-  video_player_android: ^2.9.1
+  video_player_android:
+    git:
+      url: https://github.com/AlexSeednov/video_player_android
+      ref: pause_on_seek
+      #tag_pattern: v{{version}}
+    #version: 2.9.3+1
   video_player_avfoundation:
     git:
       url: https://github.com/AlexSeednov/video_player_avfoundation

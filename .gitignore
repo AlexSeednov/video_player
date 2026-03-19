@@ -67,3 +67,4 @@ devtools_options.yaml
 example/android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java
 example/android/local.properties
 example/macos/Flutter/GeneratedPluginRegistrant.swift
+.vscode/settings.json
