@@ -159,6 +159,7 @@ class VideoPlayerValue {
   /// rest will initialize with default values when unset.
   const VideoPlayerValue({
     required this.duration,
+    this.id,
     this.size = Size.zero,
     this.position = Duration.zero,
     this.caption = Caption.none,
@@ -190,6 +191,12 @@ class VideoPlayerValue {
   /// This constant is just to indicate that parameter is not passed to [copyWith]
   /// workaround for this issue https://github.com/dart-lang/language/issues/2009
   static const String _defaultErrorDescription = 'defaultErrorDescription';
+
+  /// Unique identifier for the content currently loaded in the player.
+  ///
+  /// This can be used to identify which content the player events and
+  /// state information correspond to. May be null if not provided.
+  final String? id;
 
   /// The total duration of the video.
   ///
@@ -273,6 +280,7 @@ class VideoPlayerValue {
   /// except for any overrides passed in as arguments to [copyWith].
   VideoPlayerValue copyWith({
     Duration? duration,
+    String? id,
     Size? size,
     Duration? position,
     Caption? caption,
@@ -290,6 +298,7 @@ class VideoPlayerValue {
   }) {
     return VideoPlayerValue(
       duration: duration ?? this.duration,
+      id: id ?? this.id,
       size: size ?? this.size,
       position: position ?? this.position,
       caption: caption ?? this.caption,
@@ -312,6 +321,7 @@ class VideoPlayerValue {
   @override
   String toString() {
     return '${objectRuntimeType(this, 'VideoPlayerValue')}('
+        'id: $id, '
         'duration: $duration, '
         'size: $size, '
         'position: $position, '
@@ -333,6 +343,7 @@ class VideoPlayerValue {
       identical(this, other) ||
       other is VideoPlayerValue &&
           runtimeType == other.runtimeType &&
+          id == other.id &&
           duration == other.duration &&
           position == other.position &&
           caption == other.caption &&
@@ -351,6 +362,7 @@ class VideoPlayerValue {
 
   @override
   int get hashCode => Object.hash(
+    id,
     duration,
     position,
     caption,
@@ -391,6 +403,7 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
   /// ignore this parameter.
   VideoPlayerController.asset(
     this.dataSource, {
+    String? id,
     this.package,
     Future<ClosedCaptionFile>? closedCaptionFile,
     this.videoPlayerOptions,
@@ -399,7 +412,7 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
        dataSourceType = platform_interface.DataSourceType.asset,
        formatHint = null,
        httpHeaders = const <String, String>{},
-       super(const VideoPlayerValue(duration: Duration.zero));
+       super(VideoPlayerValue(duration: Duration.zero, id: id));
 
   /// Constructs a [VideoPlayerController] playing a network video.
   ///
@@ -417,6 +430,7 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
   @Deprecated('Use VideoPlayerController.networkUrl instead')
   VideoPlayerController.network(
     this.dataSource, {
+    String? id,
     this.formatHint,
     Future<ClosedCaptionFile>? closedCaptionFile,
     this.videoPlayerOptions,
@@ -425,7 +439,7 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
   }) : _closedCaptionFileFuture = closedCaptionFile,
        dataSourceType = platform_interface.DataSourceType.network,
        package = null,
-       super(const VideoPlayerValue(duration: Duration.zero));
+       super(VideoPlayerValue(duration: Duration.zero, id: id));
 
   /// Constructs a [VideoPlayerController] playing a network video.
   ///
@@ -438,6 +452,7 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
   /// for the request to the [dataSource].
   VideoPlayerController.networkUrl(
     Uri url, {
+    String? id,
     this.formatHint,
     Future<ClosedCaptionFile>? closedCaptionFile,
     this.videoPlayerOptions,
@@ -447,7 +462,7 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
        dataSource = url.toString(),
        dataSourceType = platform_interface.DataSourceType.network,
        package = null,
-       super(const VideoPlayerValue(duration: Duration.zero));
+       super(VideoPlayerValue(duration: Duration.zero, id: id));
 
   /// Constructs a [VideoPlayerController] playing a video from a file.
   ///
@@ -455,6 +470,7 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
   /// [httpHeaders] option allows to specify HTTP headers, mainly used for hls files like (m3u8).
   VideoPlayerController.file(
     File file, {
+    String? id,
     Future<ClosedCaptionFile>? closedCaptionFile,
     this.videoPlayerOptions,
     this.httpHeaders = const <String, String>{},
@@ -464,7 +480,7 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
        dataSourceType = platform_interface.DataSourceType.file,
        package = null,
        formatHint = null,
-       super(const VideoPlayerValue(duration: Duration.zero));
+       super(VideoPlayerValue(duration: Duration.zero, id: id));
 
   /// Constructs a [VideoPlayerController] playing a video from a contentUri.
   ///
@@ -472,6 +488,7 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
   /// This is supported on Android only.
   VideoPlayerController.contentUri(
     Uri contentUri, {
+    String? id,
     Future<ClosedCaptionFile>? closedCaptionFile,
     this.videoPlayerOptions,
     this.viewType = platform_interface.VideoViewType.textureView,
@@ -485,7 +502,7 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
        package = null,
        formatHint = null,
        httpHeaders = const <String, String>{},
-       super(const VideoPlayerValue(duration: Duration.zero));
+       super(VideoPlayerValue(duration: Duration.zero, id: id));
 
   /// The URI to the video file. This will be in different formats depending on
   /// the [DataSourceType] of the original video.
@@ -520,6 +537,7 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
   Timer? _timer;
   bool _isDisposed = false;
   bool _isReplacing = false;
+  String? _pendingContentId;
   Completer<void>? _creatingCompleter;
   StreamSubscription<dynamic>? _eventSubscription;
   _VideoAppLifeCycleObserver? _lifeCycleObserver;
@@ -614,6 +632,10 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
           );
           if (_isReplacing) {
             _isReplacing = false;
+            if (_pendingContentId != null) {
+              value = value.copyWith(id: _pendingContentId);
+              _pendingContentId = null;
+            }
             break;
           }
           assert(
@@ -1030,6 +1052,7 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
   Future<void> replace(
     String dataSource,
     platform_interface.DataSourceType sourceType, {
+    String? id,
     Map<String, String> httpHeaders = const <String, String>{},
   }) async {
     if (_isDisposedOrNotInitialized) {
@@ -1044,6 +1067,7 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
         httpHeaders: httpHeaders,
       );
       _isReplacing = true;
+      _pendingContentId = id;
       await platform.replace(_playerId, platformDataSource);
     } else {
       throw UnimplementedError('replace() is only supported on iOS for now.');
