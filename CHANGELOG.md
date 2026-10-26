@@ -1,3 +1,11 @@
+## 2.11.0+7 - Forked
+
+* Uses the [video_player_web fork](https://github.com/AlexSeednov/video_player_web)
+  2.4.0+4 on the web instead of `video_player_web` from pub.dev, as on Android
+  and iOS: HLS through hls.js everywhere except Apple WebKit, the `<video>`
+  element for the browser picture-in-picture, and playback that survives the
+  widget leaving the screen.
+
 ## 2.11.0
 
 * Adds `getAudioTracks()` and `selectAudioTrack()` methods to retrieve and select available audio tracks.
