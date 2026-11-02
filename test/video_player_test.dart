@@ -58,6 +58,9 @@ class FakeController extends ValueNotifier<VideoPlayerValue>
   Future<void> setVolume(double volume) async {}
 
   @override
+  Future<void> setWebOptions(VideoPlayerWebOptions options) async {}
+
+  @override
   Future<void> setPlaybackSpeed(double speed) async {}
 
   @override

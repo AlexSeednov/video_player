@@ -10,6 +10,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:video_player_avfoundation/video_player_avfoundation.dart';
+import 'package:video_player_web/hls_options.dart';
 import 'package:video_player_platform_interface/video_player_platform_interface.dart'
     as platform_interface;
 
@@ -26,6 +27,8 @@ export 'package:video_player_platform_interface/video_player_platform_interface.
         VideoViewType;
 
 export 'src/closed_caption_file.dart';
+export 'package:video_player_web/hls_options.dart'
+    show VideoPlayerWebHlsOptions;
 
 /// Represents an audio track in a video with its metadata.
 @immutable
@@ -532,9 +535,14 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
   /// Platforms that do not support the request view type will ignore this.
   final platform_interface.VideoViewType viewType;
 
+  /// Web options may be changed without replacing the media or its buffer.
+  platform_interface.VideoPlayerWebOptions? _webOptions;
+
   Future<ClosedCaptionFile>? _closedCaptionFileFuture;
   ClosedCaptionFile? _closedCaptionFile;
   Timer? _timer;
+  /// An earlier native seek may finish after a newer one has already completed.
+  int _seekGeneration = 0;
   bool _isDisposed = false;
   bool _isReplacing = false;
   String? _pendingContentId;
@@ -590,10 +598,17 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
         );
     }
 
-    final creationOptions = platform_interface.VideoCreationOptions(
-      dataSource: dataSourceDescription,
-      viewType: viewType,
-    );
+    final initialWebOptions = _webOptions ?? videoPlayerOptions?.webOptions;
+    final platform_interface.VideoCreationOptions creationOptions = kIsWeb
+        ? VideoPlayerWebCreationOptions(
+            dataSource: dataSourceDescription,
+            viewType: viewType,
+            webOptions: initialWebOptions,
+          )
+        : platform_interface.VideoCreationOptions(
+            dataSource: dataSourceDescription,
+            viewType: viewType,
+          );
 
     if (videoPlayerOptions?.mixWithOthers != null) {
       await _videoPlayerPlatform.setMixWithOthers(
@@ -608,11 +623,8 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
     final initializingCompleter = Completer<void>();
 
     // Apply the web-specific options
-    if (kIsWeb && videoPlayerOptions?.webOptions != null) {
-      await _videoPlayerPlatform.setWebOptions(
-        _playerId,
-        videoPlayerOptions!.webOptions!,
-      );
+    if (kIsWeb && initialWebOptions != null) {
+      await _videoPlayerPlatform.setWebOptions(_playerId, initialWebOptions);
     }
 
     void eventListener(platform_interface.VideoEvent event) {
@@ -855,8 +867,23 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
     } else if (position < Duration.zero) {
       position = Duration.zero;
     }
+    final int generation = ++_seekGeneration;
     await _videoPlayerPlatform.seekTo(_playerId, position);
+    if (_isDisposed || generation != _seekGeneration) return;
     _updatePosition(position);
+  }
+
+  /// Updates web controls and HLS buffering without reopening the source.
+  /// Other platforms ignore these web-specific options.
+  Future<void> setWebOptions(
+    platform_interface.VideoPlayerWebOptions options,
+  ) async {
+    if (_isDisposed) return;
+    if (options is VideoPlayerWebHlsOptions) options.validate();
+    _webOptions = options;
+    if (kIsWeb && _playerId != kUninitializedPlayerId) {
+      await _videoPlayerPlatform.setWebOptions(_playerId, options);
+    }
   }
 
   /// Sets the audio volume of [this].
@@ -1061,6 +1088,7 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
     final platform_interface.VideoPlayerPlatform platform =
         _videoPlayerPlatform;
     if (platform is AVFoundationVideoPlayer) {
+      _seekGeneration++;
       final platformDataSource = platform_interface.DataSource(
         sourceType: sourceType,
         uri: dataSource,

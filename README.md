@@ -45,6 +45,35 @@ entitlement](https://flutter.dev/to/macos-entitlements)
 
 The `VideoPlayerOptions.mixWithOthers` option can't be implemented in web, at least at the moment. If you use this option in web it will be silently ignored.
 
+## HLS buffering in the fork
+
+This fork exports `VideoPlayerWebHlsOptions` through `video_player.dart`:
+
+```dart
+final controller = VideoPlayerController.networkUrl(
+  Uri.parse('https://example.com/master.m3u8'),
+  videoPlayerOptions: VideoPlayerOptions(
+    webOptions: const VideoPlayerWebHlsOptions(
+      maxForwardBufferDuration: Duration(seconds: 120),
+      backBufferDuration: Duration(seconds: 30),
+      maxBufferSizeBytes: 60000000,
+    ),
+  ),
+);
+await controller.initialize();
+await controller.setWebOptions(const VideoPlayerWebHlsOptions(
+  maxForwardBufferDuration: Duration(seconds: 60),
+  backBufferDuration: Duration(seconds: 15),
+));
+```
+
+The policy is applied before HLS loading begins. Live option changes keep the
+same source and buffer; normal hls.js loading/eviction applies the new policy.
+Durations are media time. Complete segments may cross a threshold, and the byte
+target is not a total memory limit. Omitting HLS options preserves hls.js defaults.
+Native Android/iOS playback, Safari's native HLS and progressive files ignore
+these web-specific settings.
+
 ## Supported Formats
 
 - On iOS and macOS, the backing player is [AVPlayer](https://developer.apple.com/documentation/avfoundation/avplayer).

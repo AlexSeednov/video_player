@@ -1,3 +1,11 @@
+## 2.11.0+8 - Forked
+
+* Uses video_player_web 2.4.0+5, with paused buffer updates and configurable HLS
+  buffering. Exports `VideoPlayerWebHlsOptions`, passes web options into player
+  creation before loading, and adds `setWebOptions` for live updates.
+* Prevents an earlier native seek completion from rolling back a newer
+  position, including after a source replacement.
+
 ## 2.11.0+7 - Forked
 
 * Uses the [video_player_web fork](https://github.com/AlexSeednov/video_player_web)
